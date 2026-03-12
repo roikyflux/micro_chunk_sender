@@ -1,0 +1,21 @@
+# Secretos — NUNCA subir a Git
+.env
+
+# Entorno virtual de Python
+.venv/
+
+# Caché de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+
+# Datos de prueba pesados
+test_data.csv
+10000.json
+2.json
+*.csv
+*.json
+!n8n_workflow_template.json

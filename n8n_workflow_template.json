@@ -1,0 +1,230 @@
+{
+    "name": "Microservicio CRM - Subida Incremental v3",
+    "nodes": [
+        {
+            "parameters": {},
+            "id": "3be5d893-b6d9-4809-bcd2-9b5a5b51dd22",
+            "name": "When clicking \"Execute Workflow\"",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                160,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "values": {
+                    "string": [
+                        {
+                            "name": "vps_url",
+                            "value": "http://TU_IP_DEL_VPS:8000"
+                        },
+                        {
+                            "name": "api_key",
+                            "value": "tu_clave_secreta_aqui"
+                        },
+                        {
+                            "name": "dataset_name",
+                            "value": "exportacion_crm_leads"
+                        }
+                    ]
+                }
+            },
+            "id": "e6f477e1-872f-410a-99ae-27da1d56345c",
+            "name": "1. Configuración Inicial",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 1,
+            "position": [
+                380,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{$node[\"1. Configuración Inicial\"].json[\"vps_url\"]}}/jobs",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "x-api-key",
+                            "value": "={{$node[\"1. Configuración Inicial\"].json[\"api_key\"]}}"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"dataset_name\": \"{{$node['1. Configuración Inicial'].json['dataset_name']}}\"\n}"
+            },
+            "id": "67b938f3-80e9-4e78-9e5c-7431e285d893",
+            "name": "2. Iniciar Job",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                600,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "/*\nSIMULADOR DEL CRM\nAqui debes poner el nodo HTTP que llama a tu CRM.\n\nEl microservicio espera recibir en el siguiente nodo:\n1. Un array de objetos llamado \"items\"\n2. Una validación de si quedan más páginas (\"has_more\")\n*/\n\nreturn [{\n  json: {\n    items: [\n      { id: 1, first_name: \"Ana\", last_name: \"García\", email: \"ana@crm.com\", company: \"TechCorp\" },\n      { id: 2, first_name: \"Luis\", last_name: \"Pérez\", email: \"luis@crm.com\", company: \"Innovate\" }\n    ],\n    has_more: false\n  }\n}];"
+            },
+            "id": "f563459c-6745-420a-b331-5092a2a781293",
+            "name": "3. [SIMULAR] Obtener de CRM",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                820,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$json[\"has_more\"]}}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "id": "a02166e5-420a-4740-9b34-9276229497e2",
+            "name": "4. ¿Quedan páginas?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1040,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{$node[\"1. Configuración Inicial\"].json[\"vps_url\"]}}/jobs/{{$node[\"2. Iniciar Job\"].json[\"job_id\"]}}/chunks",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "x-api-key",
+                            "value": "={{$node[\"1. Configuración Inicial\"].json[\"api_key\"]}}"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"chunk_index\": {{$node[\"3. [SIMULAR] Obtener de CRM\"].context.currentIteration || 0}},\n  \"rows\": {{$node[\"3. [SIMULAR] Obtener de CRM\"].json[\"items\"]}}\n}"
+            },
+            "id": "6921345d-4f11-4993-8012-706509462c93",
+            "name": "5. Enviar Data al Microservicio",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1260,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{$node[\"1. Configuración Inicial\"].json[\"vps_url\"]}}/jobs/{{$node[\"2. Iniciar Job\"].json[\"job_id\"]}}/complete",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "x-api-key",
+                            "value": "={{$node[\"1. Configuración Inicial\"].json[\"api_key\"]}}"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "{}"
+            },
+            "id": "7485302e-9844-4824-a281-a28a2a781293",
+            "name": "6. Completar CSV en GCS",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                1260,
+                460
+            ]
+        }
+    ],
+    "connections": {
+        "When clicking \"Execute Workflow\"": {
+            "main": [
+                [
+                    {
+                        "node": "1. Configuración Inicial",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "1. Configuración Inicial": {
+            "main": [
+                [
+                    {
+                        "node": "2. Iniciar Job",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "2. Iniciar Job": {
+            "main": [
+                [
+                    {
+                        "node": "3. [SIMULAR] Obtener de CRM",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "3. [SIMULAR] Obtener de CRM": {
+            "main": [
+                [
+                    {
+                        "node": "4. ¿Quedan páginas?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "4. ¿Quedan páginas?": {
+            "main": [
+                [
+                    {
+                        "node": "5. Enviar Data al Microservicio",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "6. Completar CSV en GCS",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "5. Enviar Data al Microservicio": {
+            "main": [
+                [
+                    {
+                        "node": "3. [SIMULAR] Obtener de CRM",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
