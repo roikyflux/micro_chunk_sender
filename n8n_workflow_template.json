@@ -27,6 +27,14 @@
                         {
                             "name": "dataset_name",
                             "value": "exportacion_crm_leads"
+                        },
+                        {
+                            "name": "email",
+                            "value": "roiky@fluxforce.com"
+                        },
+                        {
+                            "name": "password",
+                            "value": "Flux.2026"
                         }
                     ]
                 }
@@ -55,7 +63,7 @@
                 },
                 "sendBody": true,
                 "specifyBody": "json",
-                "jsonBody": "={\n  \"dataset_name\": \"{{$node['1. Configuración Inicial'].json['dataset_name']}}\"\n}"
+                "jsonBody": "={\n  \"dataset_name\": \"{{$node['1. Configuración Inicial'].json['dataset_name']}}\",\n  \"email\": \"{{$node['1. Configuración Inicial'].json['email']}}\",\n  \"password\": \"{{$node['1. Configuración Inicial'].json['password']}}\"\n}"
             },
             "id": "67b938f3-80e9-4e78-9e5c-7431e285d893",
             "name": "2. Iniciar Job",

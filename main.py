@@ -51,15 +51,13 @@ app = FastAPI(title="CSV Chunk Microservice", version="3.0.0")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 BACKEND_URL    = os.environ["BACKEND_URL"]
-BACKEND_EMAIL  = os.environ["BACKEND_EMAIL"]
-BACKEND_PASS   = os.environ["BACKEND_PASSWORD"]
 API_SECRET_KEY = os.environ.get("API_SECRET_KEY")
 
 # GCS exige chunks intermedios ≥ 256 KiB (excepto el último)
 GCS_MIN_CHUNK_BYTES = 256 * 1024   # 262.144 bytes
 
 store    = JobStore()
-uploader = PlatformUploader(BACKEND_URL, BACKEND_EMAIL, BACKEND_PASS)
+# Eliminado el uploader global para permitir multi-usuario con credenciales dinámicas
 
 # ── Auth helper ───────────────────────────────────────────────────────────────
 def verify_auth(x_api_key: Optional[str]):
@@ -69,6 +67,8 @@ def verify_auth(x_api_key: Optional[str]):
 # ── Models ────────────────────────────────────────────────────────────────────
 class CreateJobRequest(BaseModel):
     dataset_name: str
+    email: str
+    password: str
     headers: Optional[list[str]] = None
 
 class ChunkRequest(BaseModel):
@@ -99,12 +99,15 @@ def create_job(req: CreateJobRequest, x_api_key: Optional[str] = Header(None)):
 
     store.create(job_id, filename=filename, headers=req.headers)
 
+    # El request exige email y password como parámetros requeridos
+    job_uploader = PlatformUploader(BACKEND_URL, req.email, req.password)
+
     try:
         # Paso 2: obtener URL firmada del backend
-        signed = uploader.get_resumable_url(filename)
+        signed = job_uploader.get_resumable_url(filename)
 
         # Paso 3: iniciar sesión resumable en GCS → obtener Location
-        location = uploader.init_resumable_session(signed["resumableUrl"])
+        location = job_uploader.init_resumable_session(signed["resumableUrl"])
 
         store.set_session(job_id,
                           upload_location=location,
@@ -177,7 +180,10 @@ def upload_chunk(job_id: str, req: ChunkRequest,
         to_send = buffer[:GCS_MIN_CHUNK_BYTES]
         buffer  = buffer[GCS_MIN_CHUNK_BYTES:]
 
-        new_offset = uploader.upload_chunk(
+        # Instancia temporal solo para usar los métodos de ayuda de GCS (no requiere auth)
+        gcs_uploader = PlatformUploader(BACKEND_URL, "", "")
+
+        new_offset = gcs_uploader.upload_chunk(
             location=job["upload_location"],
             chunk_bytes=to_send,
             byte_offset=byte_offset,
@@ -244,7 +250,8 @@ def complete_job(job_id: str, req: CompleteRequest = CompleteRequest(),
             )
 
         # Enviar el buffer restante como chunk FINAL (conocemos el total ahora)
-        total_bytes = uploader.finalize_upload(
+        gcs_uploader = PlatformUploader(BACKEND_URL, "", "")
+        total_bytes = gcs_uploader.finalize_upload(
             location=job["upload_location"],
             chunk_bytes=buffer,
             byte_offset=byte_offset,

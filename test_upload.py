@@ -21,6 +21,10 @@ import argparse
 import requests
 from datetime import datetime
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ── Configuración ─────────────────────────────────────────────────────────────
 SERVICE_URL = "http://localhost:8000"
@@ -131,15 +135,19 @@ def paginate(rows: list[list], page_size: int) -> list[list[list]]:
     return pages
 
 # ── PASO 1: Crear Job ─────────────────────────────────────────────────────────
-def create_job(dataset_name: str, headers: list[str] = None) -> str:
+def create_job(dataset_name: str, email: str, password: str, headers: list[str] = None) -> str:
     separator("PASO 1: Crear Job")
     log("STEP", f"POST {SERVICE_URL}/jobs")
     
-    payload = {"dataset_name": dataset_name}
+    payload = {
+        "dataset_name": dataset_name,
+        "email": email,
+        "password": password
+    }
     if headers:
         payload["headers"] = headers
         
-    log("INFO", "Body enviado", payload)
+    log("INFO", "Body enviado", {k: (v if k != "password" else "***") for k, v in payload.items()})
 
     t0   = time.time()
     resp = requests.post(
@@ -298,7 +306,13 @@ def main():
     parser.add_argument("--page-size",    type=int, default=1000,     help="Filas por chunk")
     parser.add_argument("--dataset-name", default="",                 help="Nombre del dataset en GCS (sin extensión)")
     parser.add_argument("--format",       default="json",             help="Solo para CSV: 'json' (dicts) o 'list' (arrays)")
+    parser.add_argument("--email",        default=os.environ.get("BACKEND_EMAIL", ""),    help="Email para el backend")
+    parser.add_argument("--password",     default=os.environ.get("BACKEND_PASSWORD", ""), help="Password para el backend")
     args = parser.parse_args()
+    
+    if not args.email or not args.password:
+        log("ERROR", "Se requieren parámetros --email y --password para el test.")
+        sys.exit(1)
 
     dataset_name = args.dataset_name or f"test_crm4_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
@@ -308,6 +322,7 @@ def main():
         "input_file":   args.input,
         "page_size":    args.page_size,
         "dataset_name": dataset_name,
+        "email":        args.email or "(desde .env del servicio)",
     })
 
     t_start = time.time()
@@ -335,7 +350,7 @@ def main():
     # Solo enviamos cabeceras iniciales si el formato es 'list'.
     # Si es 'json', dejamos que el microservicio las deduzca automáticamente.
     headers_for_job = None if row_format == "json" else headers
-    job_id = create_job(dataset_name, headers=headers_for_job)
+    job_id = create_job(dataset_name, email=args.email, password=args.password, headers=headers_for_job)
     chunk_stats = send_chunks(job_id, pages, args.format)
     final = complete_job(job_id)
     check_status(job_id)
