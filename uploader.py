@@ -79,9 +79,12 @@ class PlatformUploader:
             headers={
                 "Authorization": f"Bearer {token}",
                 "Content-Type":  "application/json",
+                "App-Identifier": "dedomena"
             },
             timeout=30,
         )
+        if resp.status_code >= 400:
+            logger.error(f"El backend rechazó la petición: {resp.text}")
         resp.raise_for_status()
 
         data = resp.json()

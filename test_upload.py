@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Configuración ─────────────────────────────────────────────────────────────
-SERVICE_URL = "http://localhost:8000"
+SERVICE_URL = "http://72.62.22.15:8000"
 API_KEY     = "csv-service-local-2026"
 HEADERS     = {
     "Content-Type": "application/json",

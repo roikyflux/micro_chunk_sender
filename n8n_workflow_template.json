@@ -1,238 +1,519 @@
 {
-    "name": "Microservicio CRM - Subida Incremental v3",
-    "nodes": [
-        {
-            "parameters": {},
-            "id": "3be5d893-b6d9-4809-bcd2-9b5a5b51dd22",
-            "name": "When clicking \"Execute Workflow\"",
-            "type": "n8n-nodes-base.manualTrigger",
-            "typeVersion": 1,
-            "position": [
-                160,
-                240
-            ]
-        },
-        {
-            "parameters": {
-                "values": {
-                    "string": [
-                        {
-                            "name": "vps_url",
-                            "value": "http://TU_IP_DEL_VPS:8000"
-                        },
-                        {
-                            "name": "api_key",
-                            "value": "tu_clave_secreta_aqui"
-                        },
-                        {
-                            "name": "dataset_name",
-                            "value": "exportacion_crm_leads"
-                        },
-                        {
-                            "name": "email",
-                            "value": "roiky@fluxforce.com"
-                        },
-                        {
-                            "name": "password",
-                            "value": "Flux.2026"
-                        }
-                    ]
-                }
-            },
-            "id": "e6f477e1-872f-410a-99ae-27da1d56345c",
-            "name": "1. Configuración Inicial",
-            "type": "n8n-nodes-base.set",
-            "typeVersion": 1,
-            "position": [
-                380,
-                240
-            ]
-        },
-        {
-            "parameters": {
-                "method": "POST",
-                "url": "={{$node[\"1. Configuración Inicial\"].json[\"vps_url\"]}}/jobs",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "x-api-key",
-                            "value": "={{$node[\"1. Configuración Inicial\"].json[\"api_key\"]}}"
-                        }
-                    ]
-                },
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={\n  \"dataset_name\": \"{{$node['1. Configuración Inicial'].json['dataset_name']}}\",\n  \"email\": \"{{$node['1. Configuración Inicial'].json['email']}}\",\n  \"password\": \"{{$node['1. Configuración Inicial'].json['password']}}\"\n}"
-            },
-            "id": "67b938f3-80e9-4e78-9e5c-7431e285d893",
-            "name": "2. Iniciar Job",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                600,
-                240
-            ]
-        },
-        {
-            "parameters": {
-                "jsCode": "/*\nSIMULADOR DEL CRM\nAqui debes poner el nodo HTTP que llama a tu CRM.\n\nEl microservicio espera recibir en el siguiente nodo:\n1. Un array de objetos llamado \"items\"\n2. Una validación de si quedan más páginas (\"has_more\")\n*/\n\nreturn [{\n  json: {\n    items: [\n      { id: 1, first_name: \"Ana\", last_name: \"García\", email: \"ana@crm.com\", company: \"TechCorp\" },\n      { id: 2, first_name: \"Luis\", last_name: \"Pérez\", email: \"luis@crm.com\", company: \"Innovate\" }\n    ],\n    has_more: false\n  }\n}];"
-            },
-            "id": "f563459c-6745-420a-b331-5092a2a781293",
-            "name": "3. [SIMULAR] Obtener de CRM",
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                820,
-                240
-            ]
-        },
-        {
-            "parameters": {
-                "conditions": {
-                    "boolean": [
-                        {
-                            "value1": "={{$json[\"has_more\"]}}",
-                            "value2": true
-                        }
-                    ]
-                }
-            },
-            "id": "a02166e5-420a-4740-9b34-9276229497e2",
-            "name": "4. ¿Quedan páginas?",
-            "type": "n8n-nodes-base.if",
-            "typeVersion": 1,
-            "position": [
-                1040,
-                240
-            ]
-        },
-        {
-            "parameters": {
-                "method": "POST",
-                "url": "={{$node[\"1. Configuración Inicial\"].json[\"vps_url\"]}}/jobs/{{$node[\"2. Iniciar Job\"].json[\"job_id\"]}}/chunks",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "x-api-key",
-                            "value": "={{$node[\"1. Configuración Inicial\"].json[\"api_key\"]}}"
-                        }
-                    ]
-                },
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "={\n  \"chunk_index\": {{$node[\"3. [SIMULAR] Obtener de CRM\"].context.currentIteration || 0}},\n  \"rows\": {{$node[\"3. [SIMULAR] Obtener de CRM\"].json[\"items\"]}}\n}"
-            },
-            "id": "6921345d-4f11-4993-8012-706509462c93",
-            "name": "5. Enviar Data al Microservicio",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                1260,
-                240
-            ]
-        },
-        {
-            "parameters": {
-                "method": "POST",
-                "url": "={{$node[\"1. Configuración Inicial\"].json[\"vps_url\"]}}/jobs/{{$node[\"2. Iniciar Job\"].json[\"job_id\"]}}/complete",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "x-api-key",
-                            "value": "={{$node[\"1. Configuración Inicial\"].json[\"api_key\"]}}"
-                        }
-                    ]
-                },
-                "sendBody": true,
-                "specifyBody": "json",
-                "jsonBody": "{}"
-            },
-            "id": "7485302e-9844-4824-a281-a28a2a781293",
-            "name": "6. Completar CSV en GCS",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                1260,
-                460
-            ]
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "32a8b060-d86a-405f-9a8b-59d3c48aa2f4",
+        "authentication": "jwtAuth",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
         }
-    ],
-    "connections": {
-        "When clicking \"Execute Workflow\"": {
-            "main": [
-                [
-                    {
-                        "node": "1. Configuración Inicial",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "1. Configuración Inicial": {
-            "main": [
-                [
-                    {
-                        "node": "2. Iniciar Job",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "2. Iniciar Job": {
-            "main": [
-                [
-                    {
-                        "node": "3. [SIMULAR] Obtener de CRM",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "3. [SIMULAR] Obtener de CRM": {
-            "main": [
-                [
-                    {
-                        "node": "4. ¿Quedan páginas?",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "4. ¿Quedan páginas?": {
-            "main": [
-                [
-                    {
-                        "node": "5. Enviar Data al Microservicio",
-                        "type": "main",
-                        "index": 0
-                    }
-                ],
-                [
-                    {
-                        "node": "6. Completar CSV en GCS",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "5. Enviar Data al Microservicio": {
-            "main": [
-                [
-                    {
-                        "node": "3. [SIMULAR] Obtener de CRM",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2160,
+        3776
+      ],
+      "id": "3f89c39c-551f-4313-8c7f-4fdf3e25ff74",
+      "name": "Webhook1",
+      "webhookId": "32a8b060-d86a-405f-9a8b-59d3c48aa2f4",
+      "credentials": {
+        "jwtAuth": {
+          "id": "jWPAsbfW77ld6Uri",
+          "name": "JWT Auth Dedomena"
         }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Inicializa el estado del paginador\n// La query SOQL base viene de default_params.q\nconst baseQuery = $('Get SF Resources1').first().json.default_params?.q || '';\nconst LIMIT = 1000;\n\n// Si la query no tiene LIMIT, se lo agregamos\nconst queryWithLimit = baseQuery.toUpperCase().includes('LIMIT')\n  ? baseQuery\n  : `${baseQuery} LIMIT ${LIMIT} OFFSET 0`;\n\nreturn [{\n  json: {\n    // Estado del loop\n    offset: 0,\n    limit: LIMIT,\n    hasMore: true,\n    pageCount: 0,\n    totalFetched: 0,\n    // Datos que necesitan los nodos del loop\n    accessToken: $('Authenticate5').first().json.access_token,\n    instanceUrl: $('Authenticate5').first().json.instance_url,\n    baseQuery: baseQuery,\n    endpointPath: $('Get SF Resources1').first().json.endpoint_path,\n    jobId: $('FF Create Job1').first().json.job_id,\n    resource: $('Get SF Resources1').first().json.slug,\n    // Primera URL a usar\n    nextUrl: null,\n    currentQuery: queryWithLimit\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        3776
+      ],
+      "id": "2cfd6301-63f5-4c85-b915-69f4e99bd1d7",
+      "name": "FF Init Paginator"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decide qué URL/query usar:\n// - Si hay nextUrl (de la respuesta anterior de SF) → usarla directamente\n// - Si no → construir con OFFSET\nconst state = $input.item.json;\n\nconst LIMIT = state.limit;\nconst offset = state.offset;\nconst baseQuery = state.baseQuery;\n\n// SF devuelve nextRecordsUrl cuando hay más páginas\nconst nextUrl = state.nextUrl;\n\nlet fetchUrl;\nlet useQuery = false;\n\nif (nextUrl) {\n  // SF ya nos da la URL directa para la siguiente página\n  fetchUrl = state.instanceUrl + nextUrl;\n  useQuery = false;\n} else {\n  // Primera página o fallback con OFFSET\n  const queryWithOffset = baseQuery.toUpperCase().includes('LIMIT')\n    ? baseQuery\n        .replace(/LIMIT\\s+\\d+/i, `LIMIT ${LIMIT}`)\n        .replace(/OFFSET\\s+\\d+/i, `OFFSET ${offset}`)\n    : `${baseQuery} LIMIT ${LIMIT} OFFSET ${offset}`;\n  \n  fetchUrl = state.instanceUrl + state.endpointPath;\n  useQuery = true;\n  state.currentQuery = queryWithOffset;\n}\n\nreturn [{\n  json: {\n    ...state,\n    fetchUrl,\n    useQuery\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        3776
+      ],
+      "id": "8466f883-4cd3-4b60-b319-abe2b4b2b3ea",
+      "name": "FF Build Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesa la respuesta de Salesforce y actualiza el estado\nconst state = $('FF Build Request').item.json;\nconst response = $input.item.json;\n\n// SF devuelve los registros en response.records\nconst records = response.records || [];\nconst totalSize = response.totalSize || 0;\nconst nextRecordsUrl = response.nextRecordsUrl || null;\n\n// IMPORTANTE: nextRecordsUrl es la fuente de verdad para saber si hay más páginas.\n// SF puede devolver done:true incluso en la primera página si el dataset es pequeño,\n// pero también puede devolver done:true junto con nextRecordsUrl en edge cases.\n// Siempre priorizamos nextRecordsUrl. Solo cuando no existe miramos response.done.\nconst hasMore = !!nextRecordsUrl || response.done === false;\n\nconst newTotalFetched = state.totalFetched + records.length;\nconst newPageCount = state.pageCount + 1;\nconst newOffset = state.offset + records.length;\n\nconsole.log(`Página ${newPageCount}: ${records.length} registros | Total: ${newTotalFetched}/${totalSize} | done: ${response.done} | nextUrl: ${nextRecordsUrl} | hasMore: ${hasMore}`);\n\nreturn [{\n  json: {\n    // Estado actualizado para la próxima iteración\n    offset: newOffset,\n    limit: state.limit,\n    hasMore: hasMore,\n    pageCount: newPageCount,\n    totalFetched: newTotalFetched,\n    totalSize: totalSize,\n    accessToken: state.accessToken,\n    instanceUrl: state.instanceUrl,\n    baseQuery: state.baseQuery,\n    endpointPath: state.endpointPath,\n    jobId: state.jobId,\n    resource: state.resource,\n    nextUrl: nextRecordsUrl,\n    // Registros de esta página para enviar al job\n    pageRecords: records,\n    currentPage: newPageCount\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        3776
+      ],
+      "id": "afddf6da-3907-4fc7-a752-f3f81aaf1e54",
+      "name": "FF Process Page"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://72.62.22.15:8000/jobs/{{ $json.jobId }}/chunks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "csv-service-local-2026"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"chunk_index\": $json.pageCount - 1, \"rows\": $json.pageRecords } }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        176,
+        3776
+      ],
+      "id": "c220f306-7f8e-4216-9a1d-d9781587f73b",
+      "name": "FF Send Page to Job",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-has-more",
+              "leftValue": "={{ $json.hasMore }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        3776
+      ],
+      "id": "133983fd-c728-4647-8078-359c21a7611a",
+      "name": "FF Has More Pages?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://72.62.22.15:8000/jobs/{{ $json.jobId }}/complete",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "csv-service-local-2026"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        608,
+        4080
+      ],
+      "id": "83596a43-e1d4-4a01-9c5b-a13460113040",
+      "name": "FF Finalize Job"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "service_providers",
+          "mode": "list",
+          "cachedResultName": "service_providers"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "slug",
+              "value": "={{ $json.body.app }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1888,
+        3776
+      ],
+      "id": "d2320ee1-dc95-48af-9113-51406de3e1e6",
+      "name": "Get Provider5",
+      "credentials": {
+        "postgres": {
+          "id": "EFFBvQSYcGM97Ul5",
+          "name": "Postgres Dedomena"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "provider_resources",
+          "mode": "list",
+          "cachedResultName": "provider_resources"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "provider_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "column": "slug",
+              "value": "={{ $('Webhook1').item.json.body.dataset }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1664,
+        3776
+      ],
+      "id": "ee441b15-89e5-4374-8be2-d83fd9c5b95d",
+      "name": "Get SF Resources1",
+      "credentials": {
+        "postgres": {
+          "id": "EFFBvQSYcGM97Ul5",
+          "name": "Postgres Dedomena"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook1').item.json.body;\nconst provider = $('Get Provider5').item.json;\nconst resource = $('Get SF Resources1').item.json;\n\nif (!provider?.id) throw new Error(`Provider not found: ${body.app}`);\nif (!resource?.id) throw new Error(`Dataset '${body.dataset}' not found for provider '${body.app}'`);\n\nreturn {\n  baseUrl: provider.base_url,\n  endpointPath: resource.endpoint_path,\n  defaultParams: resource.default_params || {},\n  paginationConfig: resource.pagination_config || {},\n  responseMapping: resource.response_mapping || {},\n  authType: provider.auth_type,\n  authConfig: provider.auth_config || {},\n  providerSlug: provider.slug,\n  resourceSlug: resource.slug,\n  clientId: body.client_id,\n  clientSecret: body.client_secret\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1424,
+        3776
+      ],
+      "id": "d09574ce-d30a-4eb9-bdb3-d525cc2682fe",
+      "name": "Build Context4"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.baseUrl }}/services/oauth2/token",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            },
+            {
+              "name": "client_id",
+              "value": "={{ $json.clientId }}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{ $json.clientSecret }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1184,
+        3776
+      ],
+      "id": "34794675-b145-4d84-a341-fe05fef87b15",
+      "name": "Authenticate5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://72.62.22.15:8000/jobs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "csv-service-local-2026"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \n    \"dataset_name\": \"{{ $('Webhook1').item.json.body.app }}_{{ $('Webhook1').item.json.body.dataset }}\",\n    \"email\": \"{{ $('Webhook1').item.json.body.deduser }}\",\n    \"password\": \"{{ $('Webhook1').item.json.body.dedpass }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -944,
+        3776
+      ],
+      "id": "5fe07546-4001-42b1-b1c8-a04e371bac30",
+      "name": "FF Create Job1"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -496,
+        3552
+      ],
+      "id": "076ca430-fb87-4fe4-a7a0-e3596afda16c",
+      "name": "FF Respond Success1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.fetchUrl }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.currentQuery }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.accessToken }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -272,
+        3776
+      ],
+      "id": "d2d1e534-f106-4c25-87a0-d7a3e46a92e1",
+      "name": "REST — Fetch Page3"
     }
+  ],
+  "connections": {
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Get Provider5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FF Init Paginator": {
+      "main": [
+        [
+          {
+            "node": "FF Respond Success1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "FF Build Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FF Build Request": {
+      "main": [
+        [
+          {
+            "node": "REST — Fetch Page3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FF Process Page": {
+      "main": [
+        [
+          {
+            "node": "FF Send Page to Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FF Send Page to Job": {
+      "main": [
+        [
+          {
+            "node": "FF Has More Pages?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FF Has More Pages?": {
+      "main": [
+        [
+          {
+            "node": "FF Build Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FF Finalize Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Provider5": {
+      "main": [
+        [
+          {
+            "node": "Get SF Resources1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get SF Resources1": {
+      "main": [
+        [
+          {
+            "node": "Build Context4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Context4": {
+      "main": [
+        [
+          {
+            "node": "Authenticate5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authenticate5": {
+      "main": [
+        [
+          {
+            "node": "FF Create Job1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FF Create Job1": {
+      "main": [
+        [
+          {
+            "node": "FF Init Paginator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "REST — Fetch Page3": {
+      "main": [
+        [
+          {
+            "node": "FF Process Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
 }
