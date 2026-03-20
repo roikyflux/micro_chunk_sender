@@ -1,0 +1,17 @@
+.venv
+__pycache__
+.git
+.env
+*.csv
+*.json
+!n8n_workflow_template.json
+.pytest_cache
+.ruff_cache
+.mypy_cache
+tests/
+Dockerfile
+docker-compose.yml
+AGENTS.md
+README.md
+N8N_GUIDE.md
+context.md

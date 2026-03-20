@@ -212,6 +212,31 @@ sudo systemctl reload nginx
 
 ---
 
+## 7. Despliegue con Docker (Recomendado)
+
+Si prefieres usar contenedores, puedes levantar el servicio fácilmente.
+
+### 7.1 Construir y ejecutar con Docker Compose
+
+Asegúrate de tener un archivo `.env` configurado. Luego ejecuta:
+
+```bash
+docker compose up -d --build
+```
+
+Esto construirá la imagen y levantará el contenedor en segundo plano, exponiendo el puerto `8000`.
+
+### 7.2 Comandos útiles de Docker
+
+| Acción | Comando |
+|---|---|
+| Ver logs | `docker compose logs -f` |
+| Detener servicio | `docker compose down` |
+| Reiniciar | `docker compose restart` |
+| Ver estado | `docker ps` |
+
+---
+
 ## 8. Comandos útiles del día a día
 
 | Acción | Comando |

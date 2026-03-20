@@ -1,0 +1,14 @@
+# Orquestación de servicios para Chunk Manager
+services:
+  chunk-manager:
+    build: .
+    container_name: chunk-manager
+    ports:
+      - "9001:8000"
+    env_file:
+      - .env
+    restart: always
+
+# Redes y volúmenes según sea necesario para extender el servicio
+# networking:
+#   - chunk-net
