@@ -67,8 +67,7 @@ def verify_auth(x_api_key: Optional[str]):
 # ── Models ────────────────────────────────────────────────────────────────────
 class CreateJobRequest(BaseModel):
     dataset_name: str
-    email: str
-    password: str
+    token: str
     headers: Optional[list[str]] = None
 
 class ChunkRequest(BaseModel):
@@ -99,8 +98,8 @@ def create_job(req: CreateJobRequest, x_api_key: Optional[str] = Header(None)):
 
     store.create(job_id, filename=filename, headers=req.headers)
 
-    # El request exige email y password como parámetros requeridos
-    job_uploader = PlatformUploader(BACKEND_URL, req.email, req.password)
+    # El request exige un token válido
+    job_uploader = PlatformUploader(BACKEND_URL, req.token)
 
     try:
         # Paso 2: obtener URL firmada del backend
@@ -181,7 +180,7 @@ def upload_chunk(job_id: str, req: ChunkRequest,
         buffer  = buffer[GCS_MIN_CHUNK_BYTES:]
 
         # Instancia temporal solo para usar los métodos de ayuda de GCS (no requiere auth)
-        gcs_uploader = PlatformUploader(BACKEND_URL, "", "")
+        gcs_uploader = PlatformUploader(BACKEND_URL, "")
 
         new_offset = gcs_uploader.upload_chunk(
             location=job["upload_location"],
@@ -250,7 +249,7 @@ def complete_job(job_id: str, req: CompleteRequest = CompleteRequest(),
             )
 
         # Enviar el buffer restante como chunk FINAL (conocemos el total ahora)
-        gcs_uploader = PlatformUploader(BACKEND_URL, "", "")
+        gcs_uploader = PlatformUploader(BACKEND_URL, "")
         total_bytes = gcs_uploader.finalize_upload(
             location=job["upload_location"],
             chunk_bytes=buffer,

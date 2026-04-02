@@ -27,42 +27,14 @@ _TOKEN_TTL_SECONDS = 3000   # refresca el token cada ~50 min
 
 
 class PlatformUploader:
-    def __init__(self, backend_url: str, email: str, password: str):
+    def __init__(self, backend_url: str, token: str):
         self._backend_url = backend_url.rstrip("/")
-        self._email       = email
-        self._password    = password
-        self._token:      Optional[str]      = None
-        self._token_exp:  Optional[datetime] = None
-        self._lock        = threading.Lock()
+        self._token       = token
 
     # ── Autenticación (cacheada) ──────────────────────────────────────────────
 
     def get_token(self) -> str:
-        with self._lock:
-            now = datetime.now(timezone.utc)
-            if self._token and self._token_exp and now < self._token_exp:
-                return self._token
-
-            logger.info("Autenticando con el backend...")
-            resp = httpx.post(
-                f"{self._backend_url}/login",
-                json={"email": self._email, "password": self._password},
-                headers={"App-Identifier": "dedomena"},
-                timeout=30,
-            )
-            resp.raise_for_status()
-
-            token = resp.headers.get("authorization") or resp.headers.get("Authorization")
-            if not token:
-                raise RuntimeError(
-                    f"El backend no devolvió 'authorization' header. "
-                    f"Headers: {dict(resp.headers)}"
-                )
-
-            self._token     = token.removeprefix("Bearer ").strip()
-            self._token_exp = now + timedelta(seconds=_TOKEN_TTL_SECONDS)
-            logger.info(f"Token obtenido y cacheado. Bearer: {self._token}")
-            return self._token
+        return self._token
 
     # ── Paso 2: Obtener URL firmada ───────────────────────────────────────────
 
