@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Configuración ─────────────────────────────────────────────────────────────
-SERVICE_URL = "http://72.62.22.15:8000"
+SERVICE_URL = "http://localhost:8000"
 API_KEY     = "csv-service-local-2026"
 HEADERS     = {
     "Content-Type": "application/json",
@@ -135,7 +135,7 @@ def paginate(rows: list[list], page_size: int) -> list[list[list]]:
     return pages
 
 # ── PASO 1: Crear Job ─────────────────────────────────────────────────────────
-def create_job(dataset_name: str, token: str, headers: list[str] = None) -> str:
+def create_job(dataset_name: str, token: str, email: str = None, headers: list[str] = None) -> str:
     separator("PASO 1: Crear Job")
     log("STEP", f"POST {SERVICE_URL}/jobs")
     
@@ -143,6 +143,8 @@ def create_job(dataset_name: str, token: str, headers: list[str] = None) -> str:
         "dataset_name": dataset_name,
         "token": token
     }
+    if email:
+        payload["email"] = email
     if headers:
         payload["headers"] = headers
         
@@ -306,6 +308,7 @@ def main():
     parser.add_argument("--dataset-name", default="",                 help="Nombre del dataset en GCS (sin extensión)")
     parser.add_argument("--format",       default="json",             help="Solo para CSV: 'json' (dicts) o 'list' (arrays)")
     parser.add_argument("--token",        default=os.environ.get("BACKEND_TOKEN", ""),    help="Token para el backend")
+    parser.add_argument("--email",        default="",                                     help="Email (opcional)")
     args = parser.parse_args()
     
     if not args.token:
@@ -321,6 +324,7 @@ def main():
         "page_size":    args.page_size,
         "dataset_name": dataset_name,
         "token":        args.token and "*** (oculto) ***",
+        "email":        args.email or "(no enviado)",
     })
 
     t_start = time.time()
@@ -348,7 +352,7 @@ def main():
     # Solo enviamos cabeceras iniciales si el formato es 'list'.
     # Si es 'json', dejamos que el microservicio las deduzca automáticamente.
     headers_for_job = None if row_format == "json" else headers
-    job_id = create_job(dataset_name, token=args.token, headers=headers_for_job)
+    job_id = create_job(dataset_name, token=args.token, email=args.email, headers=headers_for_job)
     chunk_stats = send_chunks(job_id, pages, args.format)
     final = complete_job(job_id)
     check_status(job_id)

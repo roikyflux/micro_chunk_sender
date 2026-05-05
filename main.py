@@ -68,6 +68,7 @@ def verify_auth(x_api_key: Optional[str]):
 class CreateJobRequest(BaseModel):
     dataset_name: str
     token: str
+    email: Optional[str] = None
     headers: Optional[list[str]] = None
 
 class ChunkRequest(BaseModel):
