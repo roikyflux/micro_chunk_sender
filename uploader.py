@@ -43,13 +43,14 @@ class PlatformUploader:
         POST /api/v1/uploads/signed-urls
         Nuevo envelope de respuesta:
           { success, message, data: [{ uploadId, fileName, uploadUrl }], timestamp }
+        Body de la petición: [{ fileName, assetType }]
         Devuelve: { objectName, resumableUrl }  (claves internas del microservicio)
         """
         token = self.get_token()
         logger.info(f"Solicitando resumable URL para '{filename}'...")
         resp = httpx.post(
             f"{self._backend_url}/api/v1/uploads/signed-urls",
-            json={"fileNames": [filename]},
+            json=[{"fileName": filename, "assetType": "dataset"}],
             headers={
                 "Authorization": f"Bearer {token}",
                 "Content-Type":  "application/json",
