@@ -40,13 +40,15 @@ class PlatformUploader:
 
     def get_resumable_url(self, filename: str) -> dict:
         """
-        POST /datasets/resumable-url
-        Devuelve: { fileName, objectName, resumableUrl }
+        POST /api/v1/uploads/signed-urls
+        Nuevo envelope de respuesta:
+          { success, message, data: [{ uploadId, fileName, uploadUrl }], timestamp }
+        Devuelve: { objectName, resumableUrl }  (claves internas del microservicio)
         """
         token = self.get_token()
         logger.info(f"Solicitando resumable URL para '{filename}'...")
         resp = httpx.post(
-            f"{self._backend_url}/datasets/resumable-url",
+            f"{self._backend_url}/api/v1/uploads/signed-urls",
             json={"fileNames": [filename]},
             headers={
                 "Authorization": f"Bearer {token}",
@@ -59,13 +61,33 @@ class PlatformUploader:
             logger.error(f"El backend rechazó la petición: {resp.text}")
         resp.raise_for_status()
 
-        data = resp.json()
-        if not data or not isinstance(data, list):
-            raise RuntimeError(f"Respuesta inesperada de /datasets/resumable-url: {data}")
+        body = resp.json()
 
-        entry = data[0]
-        logger.info(f"objectName='{entry['objectName']}' obtenido.")
-        return entry
+        # Nuevo formato: envelope con clave 'data'
+        if isinstance(body, dict) and "data" in body:
+            entries = body["data"]
+        elif isinstance(body, list):
+            # Compatibilidad con el formato anterior (lista directa)
+            entries = body
+        else:
+            raise RuntimeError(f"Respuesta inesperada de /api/v1/uploads/signed-urls: {body}")
+
+        if not entries:
+            raise RuntimeError("La API devolvió una lista vacía en 'data'.")
+
+        entry = entries[0]
+
+        # Mapear claves nuevas → claves internas
+        # Nuevo:    uploadId, fileName, uploadUrl
+        # Interno:  objectName, resumableUrl
+        object_name  = entry.get("uploadId") or entry.get("objectName") or ""
+        resumable_url = entry.get("uploadUrl") or entry.get("resumableUrl") or ""
+
+        if not resumable_url:
+            raise RuntimeError(f"No se encontró 'uploadUrl' en la respuesta: {entry}")
+
+        logger.info(f"uploadId/objectName='{object_name}' obtenido.")
+        return {"objectName": object_name, "resumableUrl": resumable_url}
 
     # ── Paso 3: Iniciar sesión resumable ─────────────────────────────────────
 
