@@ -46,8 +46,9 @@ CSV_SERVICE_KEY = tu-api-secret-key
 ```json
 {
   "dataset_name": "{{ $json.dataset_name }}",
-  "headers": ["id", "nombre", "email", "fecha"],
-  "total_chunks": {{ $json.total_pages }}
+  "token": "TU_TOKEN_DE_ACCESO",
+  "backend_url": "https://api.tu-backend.com",
+  "headers": ["id", "nombre", "email", "fecha"]
 }
 ```
 

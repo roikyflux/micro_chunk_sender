@@ -19,11 +19,12 @@ class JobStore:
         self._jobs: dict[str, dict] = {}
         self._lock = threading.Lock()
 
-    def create(self, job_id: str, filename: str, headers: Optional[list[str]] = None) -> dict:
+    def create(self, job_id: str, filename: str, backend_url: str, headers: Optional[list[str]] = None) -> dict:
         now = datetime.now(timezone.utc).isoformat()
         job = {
             "job_id":          job_id,
             "filename":        filename,
+            "backend_url":     backend_url,
             "headers":         headers,
             "status":          JobStatus.PENDING,
             "session_ready":   False,

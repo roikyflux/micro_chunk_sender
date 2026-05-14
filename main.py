@@ -50,8 +50,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="CSV Chunk Microservice", version="3.0.0")
 
 # ── Config ────────────────────────────────────────────────────────────────────
-BACKEND_URL    = os.environ["BACKEND_URL"]
-API_SECRET_KEY = os.environ.get("API_SECRET_KEY")
+# BACKEND_URL por defecto desde el entorno (puede ser sobrescrito por job)
+DEFAULT_BACKEND_URL = os.environ.get("BACKEND_URL")
+API_SECRET_KEY      = os.environ.get("API_SECRET_KEY")
 
 # GCS exige chunks intermedios ≥ 256 KiB (excepto el último)
 GCS_MIN_CHUNK_BYTES = 256 * 1024   # 262.144 bytes
@@ -68,6 +69,7 @@ def verify_auth(x_api_key: Optional[str]):
 class CreateJobRequest(BaseModel):
     dataset_name: str
     token: str
+    backend_url: Optional[str] = None  # Si no viene, se usa DEFAULT_BACKEND_URL
     email: Optional[str] = None
     headers: Optional[list[str]] = None
 
@@ -97,10 +99,18 @@ def create_job(req: CreateJobRequest, x_api_key: Optional[str] = Header(None)):
     filename = req.dataset_name if req.dataset_name.endswith(".csv") \
                else f"{req.dataset_name}.csv"
 
-    store.create(job_id, filename=filename, headers=req.headers)
+    # Determinar qué backend usar
+    backend_url = req.backend_url or DEFAULT_BACKEND_URL
+    if not backend_url:
+        raise HTTPException(
+            status_code=400,
+            detail="No hay BACKEND_URL configurado (ni en el request ni en el entorno)"
+        )
+
+    store.create(job_id, filename=filename, backend_url=backend_url, headers=req.headers)
 
     # El request exige un token válido
-    job_uploader = PlatformUploader(BACKEND_URL, req.token)
+    job_uploader = PlatformUploader(backend_url, req.token)
 
     try:
         # Paso 2: obtener URL firmada del backend
@@ -181,7 +191,7 @@ def upload_chunk(job_id: str, req: ChunkRequest,
         buffer  = buffer[GCS_MIN_CHUNK_BYTES:]
 
         # Instancia temporal solo para usar los métodos de ayuda de GCS (no requiere auth)
-        gcs_uploader = PlatformUploader(BACKEND_URL, "")
+        gcs_uploader = PlatformUploader(job["backend_url"], "")
 
         new_offset = gcs_uploader.upload_chunk(
             location=job["upload_location"],
@@ -250,7 +260,7 @@ def complete_job(job_id: str, req: CompleteRequest = CompleteRequest(),
             )
 
         # Enviar el buffer restante como chunk FINAL (conocemos el total ahora)
-        gcs_uploader = PlatformUploader(BACKEND_URL, "")
+        gcs_uploader = PlatformUploader(job["backend_url"], "")
         total_bytes = gcs_uploader.finalize_upload(
             location=job["upload_location"],
             chunk_bytes=buffer,
